@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import json
+from exercises import exercises
 from groq import Groq
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -59,6 +60,49 @@ def extract_before_and_json(input_text):
     json_text = parts[1].strip() if len(parts) > 1 else None
 
     return before_text, json_text
+
+def map_exercises_to_output(weekly_workout, exercises):
+    print("@@@@@@@@@@@@@@@@@@")
+    print(exercises)
+    # Split the output text into lines for easier processing
+    lines = weekly_workout.strip().splitlines()
+    
+    # Initialize an empty list to store the updated output
+    updated_output = []
+    
+    # Flag to check if we're within a day section
+    in_day_section = False
+    
+    for line in lines:
+        # Check if the line starts a new day section
+        if line.strip() in ["Monday:", "Tuesday:", "Wednesday:", "Thursday:", "Friday:", "Saturday:", "Sunday:"]:
+            in_day_section = True
+            updated_output.append(line)
+            continue
+
+        # If the line does not indicate a day but we're still within a day's section
+        if in_day_section:
+            # Check if the line contains an exercise name by looking for ':'
+            if ':' in line:
+                # Get the exercise name by splitting at ':' and stripping whitespace
+                exercise_name = line.split(':')[0].strip()
+                
+                # Append the exercise line with the YouTube link if available
+                if exercise_name in exercises:
+                    youtube_link = exercises[exercise_name]
+                    updated_output.append(f"{line}, YouTube link: {youtube_link}")
+                else:
+                    updated_output.append(line)
+            else:
+                # If the line does not contain an exercise name, it's the end of the day section
+                in_day_section = False
+                updated_output.append(line)
+        else:
+            # If not in a day section, keep the line as is
+            updated_output.append(line)
+
+    # Join the list back into a single string and return
+    return "\n".join(updated_output)
 
 # Set up the Streamlit app
 st.title("🏋️‍♂️ Your Personal Workout Coach")
@@ -158,7 +202,9 @@ if st.button("Submit"):
         st.subheader("API Response")
         response, response_json = extract_before_and_json(response_text)
 
-        st.write(response)
+        # Call the function with the weekly workout and exercises dictionary
+        updated_output = map_exercises_to_output(response, exercises)
+        st.write(updated_output)
 
         st.info(response_json)
 
