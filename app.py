@@ -68,10 +68,11 @@ def uppercase_words(input_string):
 
 def map_exercises_to_output(weekly_workout, exercises):
 
+    output_workout = weekly_workout.lower()
     for key, value in exercises.items():
         # Replace occurrences of the key in weekly_workout with key + value
-        weekly_workout = weekly_workout.lower().replace(key.lower(), f"{key.lower()} {value}")
-    return weekly_workout
+        output_workout = output_workout.replace(key.lower(), f"{key.lower()} {value}")
+    return output_workout
     
 logo_path = os.path.join("resources", "logo.jpg")
 st.set_page_config(page_title="AIFit", page_icon=logo_path)
