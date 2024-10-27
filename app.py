@@ -61,48 +61,23 @@ def extract_before_and_json(input_text):
 
     return before_text, json_text
 
+def uppercase_words(input_string):
+    # Split the string into words, uppercase each, and join them back
+    return ' '.join(word.upper() for word in input_string.split())
+
+
 def map_exercises_to_output(weekly_workout, exercises):
-    print("@@@@@@@@@@@@@@@@@@")
-    print(exercises)
-    # Split the output text into lines for easier processing
-    lines = weekly_workout.strip().splitlines()
-    
-    # Initialize an empty list to store the updated output
-    updated_output = []
-    
-    # Flag to check if we're within a day section
-    in_day_section = False
-    
-    for line in lines:
-        # Check if the line starts a new day section
-        if line.strip() in ["Monday:", "Tuesday:", "Wednesday:", "Thursday:", "Friday:", "Saturday:", "Sunday:"]:
-            in_day_section = True
-            updated_output.append(line)
-            continue
 
-        # If the line does not indicate a day but we're still within a day's section
-        if in_day_section:
-            # Check if the line contains an exercise name by looking for ':'
-            if ':' in line:
-                # Get the exercise name by splitting at ':' and stripping whitespace
-                exercise_name = line.split(':')[0].strip()
-                
-                # Append the exercise line with the YouTube link if available
-                if exercise_name in exercises:
-                    youtube_link = exercises[exercise_name]
-                    updated_output.append(f"{line}, YouTube link: {youtube_link}")
-                else:
-                    updated_output.append(line)
-            else:
-                # If the line does not contain an exercise name, it's the end of the day section
-                in_day_section = False
-                updated_output.append(line)
-        else:
-            # If not in a day section, keep the line as is
-            updated_output.append(line)
+    for key, value in exercises.items():
+        # Replace occurrences of the key in weekly_workout with key + value
+        weekly_workout = weekly_workout.lower().replace(key.lower(), f"{key.lower()} {value}")
+    return weekly_workout
+    
+logo_path = os.path.join("resources", "logo.jpg")
+st.set_page_config(page_title="AIFit", page_icon=logo_path)
 
-    # Join the list back into a single string and return
-    return "\n".join(updated_output)
+# Load and display logo
+# st.image(logo_path, width=150)  # Adjust the width as needed
 
 # Set up the Streamlit app
 st.title("🏋️‍♂️ Your Personal Workout Coach")
@@ -201,7 +176,7 @@ if st.button("Submit"):
         # Display the response
         st.subheader("API Response")
         response, response_json = extract_before_and_json(response_text)
-
+        st.success(response_text)
         # Call the function with the weekly workout and exercises dictionary
         updated_output = map_exercises_to_output(response, exercises)
         st.write(updated_output)
