@@ -28,7 +28,7 @@ Navigate to the project directory and run:
    ```bash
    pip install -r requirements.txt
    ```
-4. **Add your LLM API KEY**:
+4. **Add your LLM API KEY**:<br>
    Make sure to add your LLM API key in .env file.
 
    
