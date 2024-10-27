@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import json
+import re
 from exercises import exercises
 from groq import Groq
 from anthropic import Anthropic
@@ -66,13 +67,30 @@ def uppercase_words(input_string):
     return ' '.join(word.upper() for word in input_string.split())
 
 
+def parse_workout_input(input_string):
+    # Define regex patterns
+    part1_pattern = r"(WorkoutName:.*?\n\nGoals:.*?\n\nLevel:.*?\n\nEquipment:.*?\n\nTime Available:.*?\n\n)"
+    part2_pattern = r"(Monday:.*?\n\n|Tuesday:.*?\n\n|Wednesday:.*?\n\n|Thursday:.*?\n\n|Friday:.*?\n\n|Saturday:.*?\n\n|Sunday:.*?\n\n|Tips and Motivation:.*?\n\n)"
+    
+    # Find part1
+    part1_match = re.search(part1_pattern, input_string, re.DOTALL)
+    part1 = part1_match.group(0) if part1_match else ""
+
+    # Find part2 by extracting weekdays and tips
+    part2_matches = re.findall(part2_pattern, input_string, re.DOTALL)
+    part2 = ''.join(part2_matches)
+
+    return part1.strip(), part2.strip()
+
 def map_exercises_to_output(weekly_workout, exercises):
 
-    output_workout = weekly_workout.lower()
+    part1, part2 = parse_workout_input(weekly_workout)
+
+    output_workout = part2.lower()
     for key, value in exercises.items():
         # Replace occurrences of the key in weekly_workout with key + value
-        output_workout = output_workout.replace(key.lower(), f"{key.lower()} {value}")
-    return output_workout
+        output_workout = output_workout.replace(key.lower(), f"{key.lower()} ([video]({value}))")
+    return part1 + output_workout
     
 logo_path = os.path.join("resources", "logo.jpg")
 st.set_page_config(page_title="AIFit", page_icon=logo_path)
