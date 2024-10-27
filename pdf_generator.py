@@ -16,15 +16,14 @@ class PDF(FPDF):
         # Set font for the table header
         self.set_font('Arial', 'B', 12)
         self.cell(55, 10, 'Exercise', 1)
-        self.cell(30, 10, 'Sets', 1)
-        self.cell(30, 10, 'Reps', 1)
-        self.cell(45, 10, 'Tools', 1)
+        self.cell(20, 10, 'Sets', 1)
+        self.cell(20, 10, 'Reps', 1)
+        self.cell(55, 10, 'Tools', 1)
         self.ln()  # Move to the next line after header
 
         # Set font for the table body
-        self.set_font('Arial', '', 12)
+        self.set_font('Arial', '', 10)
         
-        # Initialize a list to hold comments
         comments = []
         
         for exercise in exercises:
@@ -32,27 +31,36 @@ class PDF(FPDF):
                 self.cell(0, 10, exercise['name'], 1)
                 self.ln()
             else:
-                # Fill table without comments
-                self.cell(55, 10, exercise['name'], 1)
-                self.cell(30, 10, str(exercise['sets']), 1)
-                self.cell(30, 10, str(exercise['reps']), 1)
-                self.cell(45, 10, str(exercise['tools']), 1)
-                self.ln()
+                # Calculate the row height based on the tallest cell (multi_cell for "Tools")
+                exercise_height = self.get_string_width(exercise['name']) // 55 + 1
+                sets_height = 1  # Fixed height for sets and reps columns
+                reps_height = 1
+                tools_height = self.get_string_width(exercise['tools']) // 55 + 1
+                row_height = max(exercise_height, sets_height, reps_height, tools_height) * 10
                 
-                # Add comment to the comments list
+                # Render cells with consistent row height
+                self.cell(55, row_height, exercise['name'], 1)
+                self.cell(20, row_height, str(exercise['sets']), 1)
+                self.cell(20, row_height, str(exercise['reps']), 1)
+                self.cell(55, row_height, str(exercise['tools']), 1)  # Use a fixed height for this
+                
+                # Move to the next line after filling the row
+                self.ln(row_height)  # Move down only by the height of the row
+                
+                # Capture comments for separate section
                 comments.append(f"{exercise['name']}: {exercise['comment']}")
-        
-        # Add comments at the end of the day
-        self.set_font('Arial', 'I', 12)  # Italics for comments
-        self.cell(0, 10, 'Comments:', 0, 1, 'L')
-        
-        # Define maximum width for multi_cell to avoid overflow
-        max_width = self.w - self.l_margin - self.r_margin
 
+        # Add comments at the end of the day
+        self.set_font('Arial', 'I', 10)  # Italics for comments
+        self.cell(0, 10, 'Comments:', 0, 1, 'L')
+        max_width = self.w - self.l_margin - self.r_margin
         for comment in comments:
-            # Use multi_cell for wrapping within page margins with defined width
-            self.multi_cell(max_width, 10, comment)
-        self.ln(2)  # Add space after comments
+            self.cell(max_width, 10, comment)
+            self.ln(10)
+        #self.ln(len(5*comments))
+        self.ln()
+
+
 
 
 def generate_workout_pdf(json_file, pdf_file_name):
@@ -73,11 +81,14 @@ def generate_workout_pdf(json_file, pdf_file_name):
     # Add tips at the end
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(0, 10, 'Tips:', 0, 1, 'L')
-    pdf.set_font('Arial', '', 12)
-    
-    # Loop through each tip in the list and add it as a new line
+    pdf.set_font('Arial', '', 10)  # Reduce font size for tips
+
+    # Define a maximum width considering page margins
+    max_width = pdf.w - pdf.l_margin - pdf.r_margin
+
     for tip in data['tips']:
-        pdf.multi_cell(0, 10, f"{tip}")
+        pdf.cell(max_width, 10, tip)  # Use max_width for wrapping
+        pdf.ln()
 
     # Save the PDF
     pdf.output(pdf_file_name)
