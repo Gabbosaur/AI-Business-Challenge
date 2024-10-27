@@ -1,2 +1,5 @@
 /myenv/
+/data/
+/__pycache__/
+
 .env

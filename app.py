@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 import json
-import re
 from groq import Groq
 from anthropic import Anthropic
 from dotenv import load_dotenv
@@ -9,57 +8,28 @@ from pdf_generator import main as pdf_generator
 
 load_dotenv()
 
-
-# def parse_workout_plan(text):
-#     # Split text into parts based on workout days
-#     days = re.split(r"(?=\b(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b)", text.strip())
-#     workout_plan = {}
-    
-#     for day in days:
-#         # Extract the day name
-#         day_match = re.match(r"(\w+)\s*\(.*\)", day)
-#         if day_match:
-#             day_name = day_match.group(1)
-#             # Get exercises, ignoring initial lines before the exercises
-#             exercises = re.findall(r"(?<=\n)[^\n]+", day)
-            
-#             daily_workout = {}
-#             for exercise in exercises:
-#                 exercise = exercise.strip()
-#                 if ':' in exercise:
-#                     exercise_name, details = exercise.split(':', 1)
-#                     daily_workout[exercise_name.strip()] = details.strip()
-#                 elif exercise:  # Only add if the line is not empty
-#                     daily_workout[exercise] = "Rest day or specific activity not detailed."
-            
-#             workout_plan[day_name] = daily_workout
-    
-#     return workout_plan
-
-
 # System prompt for the workout coach role
-SYSTEM_PROMPT = """As a personal fitness coach specializing in calisthenics, your role is to design personalized workout plans tailored to individual clients. 
-These plans should consider their unique goals, physical capabilities, time availability, and the equipment they have access to (such as parallettes, rings, pull-up bars, and parallel bars). 
-The exercises should focus on improving strength, endurance, and flexibility, while maintaining a balance between challenge and attainability. You are also responsible for providing ongoing motivation and support. 
-If a client mentions having less than 10 minutes per day, advise them on the need for more time to achieve effective results.\n\n
+SYSTEM_PROMPT = """As a personal fitness coach specializing in calisthenics, your role is to design personalized workout plans tailored to individual clients.
+These plans should consider their unique goals, physical capabilities, time availability, and the equipment they have access to (such as parallettes, rings, pull-up bars, and parallel bars).
+The exercises should focus on improving strength, endurance, and flexibility, while maintaining a balance between challenge and attainability. You are also responsible for providing ongoing motivation and support.\n\n
 Don't put days of week together.
 The response should have the following format:\n
 WorkoutName: xxx\n\n
 Goals: xxx\n\n
 Level: xxx\n\n
-Equipment: xxx\n\n
-Time Available: xxx\n\n
-Monday: xxx\n\n
-Tuesday: xxx\n\n
-Wednesday: xxx\n\n
-Thursday: xxx\n\n
-Friday: xxx\n\n
-Saturday: xxx\n\n
-Sunday: xxx\n\n
-Tips and Motivation: xxxx\n\n
-"""
+Equipment: bullet point of available equipments\n\n
+Time Available: bullet point of time available in minutes per day\n\n
+Monday: list of set and reps\n\n
+Tuesday: list of set and reps\n\n
+Wednesday: list of set and reps\n\n
+Thursday: list of set and reps\n\n
+Friday: list of set and reps\n\n
+Saturday: list of set and reps\n\n
+Sunday: list of set and reps\n\n
+Tips and Motivation: bullet point\n\n
 
-SYSTEM_PROMPT2 = """You are a workout json formatter, you only response with json and nothing else. Your response should contains all day of week and should be the following (don't add metadata, only json structure):\n\n
+At the end produce the same result in the following JSON format with delimiters called "___JSON___" :
+
 {
   "workout_name": "xxxx",
   "workouts": [
@@ -67,27 +37,34 @@ SYSTEM_PROMPT2 = """You are a workout json formatter, you only response with jso
       "day_of_week": "xxx",
       "exercises": [
         {
-          "name": "xxx",
-          "sets": xx,
-          "reps": xx,
-          "weight": xxx
-		  "comment": "xxx"
+          "name": name of the exercise,
+          "sets": number of sets (string),
+          "reps": number of reps (string),
+          "tools": name the tool if required for the exercise,
+          "comment": comments and tips about the exercise
         }
       ]
     }
   ],
-  "tips": "xxx"
+  "tips": give tips and motivation
 }
 """
 
+def extract_before_and_json(input_text):
+    # Split the text at "JSON: " and separate the before and after parts
+    parts = input_text.split("___JSON___")
+
+    # If "JSON: " is found, assign parts accordingly
+    before_text = parts[0].strip()
+    json_text = parts[1].strip() if len(parts) > 1 else None
+
+    return before_text, json_text
+
 # Set up the Streamlit app
-st.title("🏋️‍♂️ Your Personal Workout Coach 🤖")
+st.title("🏋️‍♂️ Your Personal Workout Coach")
 
 # Sidebar for API selection
 api_choice = st.sidebar.selectbox("API Selection", ["Groq API", "Anthropic API"])
-
-# Input form in the main section
-st.subheader("Input Data")
 
 # User input fields for physical info, now more compact
 with st.container():
@@ -111,119 +88,111 @@ days_of_week = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 columns = st.columns(7)
 time_available = {day: columns[i].number_input(f"{day}:", min_value=0, max_value=360, step=5) for i, day in enumerate(days_of_week)}
 response_text = ""
+
+
 # Button to make API request
 if st.button("Submit"):
-    # Define the output variable
 
-    # Prepare the user details as additional context
-    user_details = (
-        f"Age: {age}, Weight: {weight} kg, Height: {height} cm, "
-        f"Goals: {fitness_goals}, Level: {fitness_level}, Gender: {gender}, "
-        f"Equipment: {', '.join(equipment)}, Time Available: {time_available}"
-    )
+    # Validate each day's time
+    invalid_days = [day for day, time in time_available.items() if 1 <= time <= 19]
+    if invalid_days:
+        st.error(f"Time for {', '.join(invalid_days)} is too low to be effective. Please provide at least 20 minutes or 0 for rest.")
+    else:
+        with st.spinner("Loading..."):  # Show the loading spinner
+            if len(equipment) == 0:
+                equipment = "No equipment"
 
-    # Combine the main user input and additional details if provided
-    full_user_input = user_details
-    if user_input:  # Only add additional comments if user_input is provided
-        full_user_input += f"\n\nAdditional Comments:\n{user_input}"
+            # Prepare the user details as additional context
+            user_details = (
+                f"Age: {age}, Weight: {weight} kg, Height: {height} cm, "
+                f"Goals: {fitness_goals}, Level: {fitness_level}, Gender: {gender}, "
+                f"Equipment: {equipment}, Time available in minutes: {time_available}"
+            )
+            # Combine the main user input and additional details if provided
+            full_user_input = user_details
+            if user_input:  # Only add additional comments if user_input is provided
+                full_user_input += f"\n\nAdditional Comments:\n{user_input}"
+                # print(full_user_input)
+            # Make the request based on the selected API
+            if api_choice == "Groq API":
+                my_groq_api_key = os.getenv("GROQ_API_KEY")
+                client = Groq(api_key=my_groq_api_key)
 
-    # Make the request based on the selected API
-    if api_choice == "Groq API":
-        my_groq_api_key = os.getenv("GROQ_API_KEY")
-        client = Groq(api_key=my_groq_api_key)
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": SYSTEM_PROMPT,
+                        },
+                        {
+                            "role": "user",
+                            "content": full_user_input,
+                        }
+                    ],
+                    model="llama-3.1-8b-instant",
+                    temperature=0,
+                )
+                response_text = chat_completion.choices[0].message.content
 
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": full_user_input,
-                }
-            ],
-            model="llama3-8b-8192",
+            elif api_choice == "Anthropic API":
+                my_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+                client = Anthropic(api_key=my_anthropic_api_key)
+
+                our_first_message = client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=1000,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": SYSTEM_PROMPT,
+                        },
+                        {
+                            "role": "user",
+                            "content": full_user_input
+                        }
+                    ]
+                )
+                response_text = our_first_message.content[0].text
+
+        # Display the response
+        st.subheader("API Response")
+        response, response_json = extract_before_and_json(response_text)
+
+        st.write(response)
+
+        st.info(response_json)
+
+        # Save JSON data to a file
+        output_file = os.path.join('data', 'workout_plan.json')
+        # print("workout_json: " + response_json)
+        parsed_json = json.loads(response_json)
+
+        # Define the folder name
+        folder_name = "data"
+
+        # Check if the folder exists
+        if not os.path.exists(folder_name):
+            os.makedirs(folder_name)
+            print(f"Folder '{folder_name}' created.")
+        else:
+            print(f"Folder '{folder_name}' already exists.")
+
+        # Save JSON data to file, creating it if it doesn't exist
+        with open(output_file, 'w') as file:
+            json.dump(parsed_json, file, indent=4)
+
+        generated_pdf_path = pdf_generator(output_file)
+        print(f"Workout plan saved to {output_file}")
+        st.success(" Exported to PDF")
+
+          # Create a download button for the PDF
+        with open(generated_pdf_path, "rb") as f:
+            pdf_data = f.read()
+        
+        st.download_button(
+            label="Download Workout Plan PDF",
+            data=pdf_data,
+            file_name="your_workout_plan",
+            mime='application/pdf',
+            key='download_pdf'  # Unique key to avoid key collisions
         )
-        response_text = chat_completion.choices[0].message.content
-
-    elif api_choice == "Anthropic API":
-        my_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        client = Anthropic(api_key=my_anthropic_api_key)
-
-        our_first_message = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=1000,
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT,
-                },
-                {
-                    "role": "user",
-                    "content": full_user_input
-                }
-            ]
-        )
-        response_text = our_first_message.content[0].text
-
-    # Display the response
-    st.subheader("API Response")
-    st.write(response_text)
-
-if st.button("Save"):
-    # Convert workout plan to JSON
-    #workout_json = parse_workout_plan(response_text)
-
-  # Make the request based on the selected API
-
-    input_request = "parse as a json my following workout plan:\n\n" + response_text
-    if api_choice == "Groq API":
-        my_groq_api_key = os.getenv("GROQ_API_KEY")
-        client = Groq(api_key=my_groq_api_key)
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT2,
-                },
-                {
-                    "role": "user",
-                    "content": input_request,
-                }
-            ],
-            model="llama3-8b-8192",
-        )
-        workout_json = chat_completion.choices[0].message.content
-    elif api_choice == "Anthropic API":
-        my_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        client = Anthropic(api_key=my_anthropic_api_key)
-        our_first_message = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=1000,
-            messages=[
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT2,
-                },
-                {
-                    "role": "user",
-                    "content": input_request
-                }
-            ]
-        )
-        workout_json = our_first_message.content[0].text
-
-
-    # Save JSON data to a file
-    output_file = os.path.join('data', 'workout_plan.json')
-    print("workout_json: " + workout_json)
-    parsed_json = json.loads(workout_json)
-
-    # Save JSON data to file, creating it if it doesn't exist
-    with open(output_file, 'w') as file:
-        json.dump(parsed_json, file, indent=4) 
-
-    print(f"Workout plan saved to {output_file}")
-    st.write(workout_json)
-    pdf_generator(output_file)

@@ -15,10 +15,10 @@ class PDF(FPDF):
     def chapter_body(self, exercises):
         # Set font for the table header
         self.set_font('Arial', 'B', 12)
-        self.cell(60, 10, 'Exercise', 1)
+        self.cell(55, 10, 'Exercise', 1)
         self.cell(30, 10, 'Sets', 1)
         self.cell(30, 10, 'Reps', 1)
-        self.cell(30, 10, 'Weight', 1)
+        self.cell(45, 10, 'Tools', 1)
         self.ln()  # Move to the next line after header
 
         # Set font for the table body
@@ -33,10 +33,10 @@ class PDF(FPDF):
                 self.ln()
             else:
                 # Fill table without comments
-                self.cell(60, 10, exercise['name'], 1)
+                self.cell(55, 10, exercise['name'], 1)
                 self.cell(30, 10, str(exercise['sets']), 1)
                 self.cell(30, 10, str(exercise['reps']), 1)
-                self.cell(30, 10, str(exercise['weight']), 1)
+                self.cell(45, 10, str(exercise['tools']), 1)
                 self.ln()
                 
                 # Add comment to the comments list
@@ -45,12 +45,14 @@ class PDF(FPDF):
         # Add comments at the end of the day
         self.set_font('Arial', 'I', 12)  # Italics for comments
         self.cell(0, 10, 'Comments:', 0, 1, 'L')
+        
+        # Define maximum width for multi_cell to avoid overflow
+        max_width = self.w - self.l_margin - self.r_margin
+
         for comment in comments:
-            self.multi_cell(0, 10, comment)
+            # Use multi_cell for wrapping within page margins with defined width
+            self.multi_cell(max_width, 10, comment)
         self.ln(2)  # Add space after comments
-
-
-
 
 
 def generate_workout_pdf(json_file, pdf_file_name):
@@ -72,10 +74,14 @@ def generate_workout_pdf(json_file, pdf_file_name):
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(0, 10, 'Tips:', 0, 1, 'L')
     pdf.set_font('Arial', '', 12)
-    pdf.multi_cell(0, 10, data['tips'])
+    
+    # Loop through each tip in the list and add it as a new line
+    for tip in data['tips']:
+        pdf.multi_cell(0, 10, f"{tip}")
 
     # Save the PDF
     pdf.output(pdf_file_name)
+
 
 def main(json_file='workout_plan.json'):
     # Ensure the 'data' directory exists
@@ -85,6 +91,8 @@ def main(json_file='workout_plan.json'):
     pdf_file_name = os.path.join(output_dir, 'workout_plan.pdf')  # Define the output file path
     generate_workout_pdf(json_file, pdf_file_name)
     print(f"PDF generated: {pdf_file_name}")
+
+    return pdf_file_name
 
 if __name__ == "__main__":
     main()
