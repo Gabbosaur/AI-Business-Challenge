@@ -90,7 +90,7 @@ def map_exercises_to_output(weekly_workout, exercises):
     for key, value in exercises.items():
         # Replace occurrences of the key in weekly_workout with key + value
         output_workout = output_workout.replace(key.lower(), f"{key.lower()} ([video]({value}))")
-    return part1 + output_workout
+    return part1 + "\n\n" + output_workout
     
 logo_path = os.path.join("resources", "logo.jpg")
 st.set_page_config(page_title="AIFit", page_icon=logo_path)
@@ -99,10 +99,11 @@ st.set_page_config(page_title="AIFit", page_icon=logo_path)
 # st.image(logo_path, width=150)  # Adjust the width as needed
 
 # Set up the Streamlit app
-st.title("🏋️‍♂️ Your Personal Workout Coach")
+st.title("🏋️‍♂️ AIFit")
+st.subheader("Your Personal Workout Coach")
 
 # Sidebar for API selection
-api_choice = st.sidebar.selectbox("API Selection", ["Groq API", "Anthropic API"])
+api_choice = st.sidebar.selectbox("API Selection", ["LLM API", "Anthropic API"])
 
 # User input fields for physical info, now more compact
 with st.container():
@@ -152,7 +153,7 @@ if st.button("Submit"):
                 full_user_input += f"\n\nAdditional Comments:\n{user_input}"
                 # print(full_user_input)
             # Make the request based on the selected API
-            if api_choice == "Groq API":
+            if api_choice == "LLM API":
                 my_groq_api_key = os.getenv("GROQ_API_KEY")
                 client = Groq(api_key=my_groq_api_key)
 

@@ -15,9 +15,9 @@ class PDF(FPDF):
     def chapter_body(self, exercises):
         # Set font for the table header
         self.set_font('Arial', 'B', 12)
-        self.cell(55, 10, 'Exercise', 1)
+        self.cell(75, 10, 'Exercise', 1)
         self.cell(20, 10, 'Sets', 1)
-        self.cell(20, 10, 'Reps', 1)
+        self.cell(30, 10, 'Reps', 1)
         self.cell(55, 10, 'Tools', 1)
         self.ln()  # Move to the next line after header
 
@@ -39,9 +39,9 @@ class PDF(FPDF):
                 row_height = max(exercise_height, sets_height, reps_height, tools_height) * 10
                 
                 # Render cells with consistent row height
-                self.cell(55, row_height, exercise['name'], 1)
+                self.cell(75, row_height, exercise['name'], 1)
                 self.cell(20, row_height, str(exercise['sets']), 1)
-                self.cell(20, row_height, str(exercise['reps']), 1)
+                self.cell(30, row_height, str(exercise['reps']), 1)
                 self.cell(55, row_height, str(exercise['tools']), 1)  # Use a fixed height for this
                 
                 # Move to the next line after filling the row
