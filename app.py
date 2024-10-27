@@ -233,7 +233,7 @@ if st.button("Submit"):
         st.download_button(
             label="Download Workout Plan PDF",
             data=pdf_data,
-            file_name="your_workout_plan",
+            file_name="your_workout_plan.pdf",
             mime='application/pdf',
             key='download_pdf'  # Unique key to avoid key collisions
         )
