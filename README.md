@@ -14,7 +14,7 @@ Before running the app, ensure you have the following dependencies installed:
 - Python 3.x
 - Linux environment
 
-### ⚙️ Setting Up the Environment
+## ⚙️ Setting Up the Environment
 Navigate to the project directory and run:
 1. **Create a virtual environment**:
    ```bash
