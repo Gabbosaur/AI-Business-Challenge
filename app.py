@@ -195,12 +195,12 @@ if st.button("Submit"):
         # Display the response
         st.subheader("API Response")
         response, response_json = extract_before_and_json(response_text)
-        st.success(response_text)
+        # st.success(response_text)
         # Call the function with the weekly workout and exercises dictionary
         updated_output = map_exercises_to_output(response, exercises)
         st.write(updated_output)
 
-        st.info(response_json)
+        # st.info(response_json)
 
         # Save JSON data to a file
         output_file = os.path.join('data', 'workout_plan.json')
@@ -223,7 +223,7 @@ if st.button("Submit"):
 
         generated_pdf_path = pdf_generator(output_file)
         print(f"Workout plan saved to {output_file}")
-        st.success(" Exported to PDF")
+        st.success("PDF ready to be downloaded")
 
           # Create a download button for the PDF
         with open(generated_pdf_path, "rb") as f:
